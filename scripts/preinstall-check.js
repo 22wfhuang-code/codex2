@@ -2,12 +2,12 @@
 
 const { execSync } = require('node:child_process');
 
-function getRegistry() {
-  const fromEnv = process.env.npm_config_registry || process.env.NPM_CONFIG_REGISTRY;
+function getConfig(key) {
+  const fromEnv = process.env[`npm_config_${key.replace(/-/g, '_')}`] || process.env[`NPM_CONFIG_${key.replace(/-/g, '_').toUpperCase()}`];
   if (fromEnv && String(fromEnv).trim()) return String(fromEnv).trim();
 
   try {
-    return execSync('npm config get registry', { stdio: ['ignore', 'pipe', 'ignore'] })
+    return execSync(`npm config get ${key}`, { stdio: ['ignore', 'pipe', 'ignore'] })
       .toString()
       .trim();
   } catch {
@@ -15,7 +15,11 @@ function getRegistry() {
   }
 }
 
-const registry = getRegistry();
+const registry = getConfig('registry');
+const proxy = getConfig('proxy');
+const httpsProxy = getConfig('https-proxy');
+const httpProxy = getConfig('http-proxy');
+
 console.log(`[preinstall] npm registry = ${registry || '(empty)'}`);
 
 if (!registry) {
@@ -29,17 +33,7 @@ if (!/^https?:\/\//i.test(registry)) {
   process.exit(0);
 }
 
-const suspicious = [
-  'verdaccio',
-  'artifactory',
-  'nexus',
-  'pkg.',
-  'registry.local',
-  'localhost',
-  '127.0.0.1',
-  'corp',
-  'internal'
-];
+const suspicious = ['verdaccio', 'artifactory', 'nexus', 'pkg.', 'registry.local', 'localhost', '127.0.0.1', 'corp', 'internal'];
 
 const lower = registry.toLowerCase();
 const isOfficial = lower.includes('registry.npmjs.org') || lower.includes('registry.npmmirror.com');
@@ -50,4 +44,10 @@ if (!isOfficial && maybePrivate) {
   console.warn('[preinstall] Quick fix (PowerShell): npm config set registry https://registry.npmjs.org/');
   console.warn('[preinstall] Mirror fallback:      npm config set registry https://registry.npmmirror.com/');
   console.warn('[preinstall] Also check and temporarily rename user/project .npmrc containing private @scope, _authToken, or proxy settings.');
+}
+
+const hasProxy = [proxy, httpsProxy, httpProxy].some((v) => v && v !== 'null' && v !== 'undefined');
+if (hasProxy) {
+  console.warn('[preinstall] Detected npm proxy/http-proxy/https-proxy config; this is a common cause of 403.');
+  console.warn('[preinstall] Fix: npm config delete proxy && npm config delete https-proxy && npm config delete http-proxy');
 }

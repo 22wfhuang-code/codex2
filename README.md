@@ -6,6 +6,10 @@
 npm config set registry https://registry.npmjs.org/
 # 若官方源受限可切换镜像
 npm config set registry https://registry.npmmirror.com/
+# 清理代理配置（很多 403 根因）
+npm config delete proxy
+npm config delete https-proxy
+npm config delete http-proxy
 ```
 
 如果仍然 403，请检查并临时重命名**项目目录**或**用户目录**下的 `.npmrc`（常见问题项：私服 `@scope:registry`、`_authToken`、代理 `proxy/http-proxy/https-proxy`），避免把安装请求重定向到无权限私服。
